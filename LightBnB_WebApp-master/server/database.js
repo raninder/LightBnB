@@ -11,6 +11,15 @@ const pool = new Pool({
 });
 
 /// Users
+pool.query(`SELECT properties.*
+FROM properties
+JOIN property_reviews ON properties.id = property_id
+WHERE city ILIKE $1 
+GROUP BY properties.id
+ORDER BY cost_per_night
+LIMIT $2;`, [ '%vancouver%', 20 ])
+.then((res)=> console.log(res.rows));
+
 
 /**
  * Get a single user from the database given their email.
@@ -52,7 +61,7 @@ exports.getUserWithId = getUserWithId;
  */
 const addUser = function (user) {
   const queryUser = `INSERT INTO users(name,email,password) 
-  VALUES($1, $2, $3)` ;
+  VALUES($1, $2, $3) RETURNING *;` ;
   return pool.query(queryUser, [user.name, user.email, user.password])
     .then((result) => {
       return result.rows;
@@ -107,14 +116,29 @@ const getAllProperties = function (options, limit = 10) {
   FROM properties
   JOIN property_reviews ON properties.id = property_id
   `;
-
+if(options.owner_id){
+  queryParams.push(`${options.owner_id}`);
+    queryString += `WHERE owner_id =$${queryParams.length} `;
+}
   // 3
   if (options.city) {
     queryParams.push(`%${options.city}%`);
-    queryString += `WHERE city LIKE $${queryParams.length} `;
+    queryString += `and city ILIKE $${queryParams.length} `;
+  }
+  //4
+  if(options.minimum_price_per_night && options.maximum_price_per_night){
+    queryParams.push(`${options.minimum_price_per_night}`);
+    queryParams.push(`${options.maximum_price_per_night}`);
+    queryString += `and cost_per_night between $${queryParams.length-1}
+    and $${queryParams.length}`;
+  }
+  //5
+  if (options.minimum_rating) {
+    queryParams.push(`${options.minimum_rating}`);
+    queryString += `and rating >= $${queryParams.length} `;
   }
 
-  // 4
+  // 6
   queryParams.push(limit);
   queryString += `
   GROUP BY properties.id
@@ -122,7 +146,7 @@ const getAllProperties = function (options, limit = 10) {
   LIMIT $${queryParams.length};
   `;
 
-  // 5
+  // 7
   console.log(queryString, queryParams);
 
   // 6
