@@ -10,15 +10,7 @@ const pool = new Pool({
   database: 'lightbnb'
 });
 
-/// Users
-pool.query(`SELECT properties.*
-FROM properties
-JOIN property_reviews ON properties.id = property_id
-WHERE city ILIKE $1 
-GROUP BY properties.id
-ORDER BY cost_per_night
-LIMIT $2;`, [ '%vancouver%', 20 ])
-.then((res)=> console.log(res.rows));
+// Users
 
 
 /**
